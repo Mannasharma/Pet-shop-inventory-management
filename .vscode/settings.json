@@ -18,5 +18,6 @@
         "titleBar.inactiveBackground": "#b4943699",
         "titleBar.inactiveForeground": "#15202b99"
     },
-    "peacock.color": "#b49436"
+    "peacock.color": "#b49436",
+    "editor.inlayHints.enabled": "off"
 }
