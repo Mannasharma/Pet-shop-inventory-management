@@ -31,6 +31,11 @@ const inventorySchema = mongoose.Schema({
         type: String,
         required : true,
         enum: ["pieces", "kg", "liters", "g", "ml", "packs"]
+    },
+
+      expireDate: {
+        type: Date,
+        required: true
     }
 
 
