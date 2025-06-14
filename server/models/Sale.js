@@ -11,7 +11,7 @@ const salesSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    total_revenue: {
+    revenue: {
       type: Number,
       required: true,
     },

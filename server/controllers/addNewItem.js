@@ -1,4 +1,4 @@
-const Inventory =require("../models/inventory")
+const Inventory =require("../models/Inventory")
 
 
 async function addNewItem(req,res){
