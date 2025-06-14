@@ -8,22 +8,39 @@ async function addNewSale(req, res) {
     return res.status(400).json({ error: "All fields are required." });
   }
   try {
-    for (let item of entries) {
-      const existingSale = await Sale.findOne({
-        pet_food_id: item.pet_food_id,
-        sale_date: item.sale_date,
-      });
-      if (existingSale) {
-        (existingSale.quantity_sold += item.quantity_sold),
-          (existingSale.revenue += item.revenue);
-        await existingSale.save();
-      }
-      else{
-        await Sale.create(item)
-      }
-    }
+    const bulkOps = entries.map((item) => ({
+      updateOne: {
+        filter: { pet_food_id: item.pet_food_id, sale_date: item.sale_date },
+        update: {
+          $inc: {
+            quantity_sold: item.quantity_sold,
+            revenue: item.revenue,
+          },
+          $setOnInsert: {
+            pet_food_id: item.pet_food_id,
+            sale_date: item.sale_date,
+          },
+        },
+        upsert: true, // creates a new document if no match is found
+      },
+    }));
 
-    res.status(200).json({ massage: "sale added" });
+    await Sale.bulkWrite(bulkOps);
+
+    const updateInventory = entries.map((item) =>({
+      updateOne: {
+        filter: {
+          _id: item.pet_food_id
+        },
+        update: {
+          $inc: {
+            stockQuantity: -item.quantity_sold
+          }
+        }
+      }}));
+
+    await Inventory.bulkWrite(updateInventory)
+    res.status(200).json({ message: "Sales processed." });
   } catch (error) {
     res.status(500).json({ error: "Something went wrong" });
   }
