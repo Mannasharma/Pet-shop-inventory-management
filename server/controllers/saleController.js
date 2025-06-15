@@ -83,7 +83,7 @@ async function modifySale(req, res) {
         stockDiffer,
         revenueDiffer,
         newQuantity: newEntry.quantity_sold,
-        newRevenue: newEntry.Revenue,
+        newRevenue: newEntry.revenue,
       };
     });
     const options = change.map((change)=>({
@@ -128,6 +128,11 @@ async function getSales(req,res) {
   }
   
 }
+
+// Delete sales
+
+
+
 module.exports = {
   addNewSale,
   modifySale,
