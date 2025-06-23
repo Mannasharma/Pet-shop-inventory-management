@@ -131,10 +131,30 @@ async function getSales(req,res) {
 
 // Delete sales
 
+async function deleteSales(req,res) {
+  try{const saleId = req.body
+
+  if(!saleId.isArray(saleId) || saleId.length === 0){
+      return res.json({error:"No sale selected."})
+    }
+
+   const result = await Sale.deleteMany({_id:{$in: saleId}})
+
+   res.status(200).json({
+      message: "Items deleted successfully",
+      deletedCount: result.deletedCount})}
+catch (error) {
+    console.error("Error deleting items:", error);
+    res.status(500).json({ error: error.message || "Something went wrong" });
+  }
+  
+}
+
 
 
 module.exports = {
   addNewSale,
   modifySale,
-  getSales
+  getSales,
+  deleteSales
 };
