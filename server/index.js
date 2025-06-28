@@ -2,7 +2,7 @@ const express = require("express")
 const {connectMongoDB} = require("./config/connection")
 const inventoryRouter = require("./routes/inventoryRouter")
 const saleRouter = require("./routes/saleRouter")
-
+const reportRouter = require("./routes/reportRouter")
 
 const app = express()
 
@@ -15,6 +15,7 @@ app.get("/",(req,res)=>{
 })
 app.use("/inventory",inventoryRouter)
 app.use("/sales",saleRouter)
+app.use("/report",reportRouter)
 
 
 
