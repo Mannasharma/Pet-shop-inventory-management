@@ -15,7 +15,7 @@ app.get("/",(req,res)=>{
 })
 app.use("/inventory",inventoryRouter)
 app.use("/sales",saleRouter)
-app.use("/report",reportRouter)
+app.use("/report", reportRouter)
 
 
 
