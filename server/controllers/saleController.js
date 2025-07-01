@@ -117,21 +117,55 @@ async function modifySale(req, res) {
 
 // Get sales
 async function getSales(req, res) {
+  const { id, from, to, brand, category, productName } = req.body;
+
   try {
-    const now = new Date();
-    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+    const query = {};
 
-    const sales = await Sale.find({
-      sale_date: { $gte: startOfDay, $lte: endOfDay }
-    }).sort({ sale_date: -1 });
+    // Filter by pet_food_id
+    if (id) {
+      query.pet_food_id = id;
+    }
 
+    // Filter by brand
+    if (brand) {
+      query.brand = { $regex: new RegExp(brand, "i") }; // case-insensitive
+    }
+
+    // Filter by category
+    if (category) {
+      query.category = { $regex: new RegExp(category, "i") };
+    }
+
+    // Filter by product name
+    if (productName) {
+      query.product_Name = { $regex: new RegExp(productName, "i") };
+    }
+
+    // Date range filter or default to today's sales
+    if (from || to) {
+      query.sale_date = {};
+      if (from) query.sale_date.$gte = new Date(from);
+      if (to) {
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        query.sale_date.$lte = toDate;
+      }
+    } else {
+      const now = new Date();
+      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+      query.sale_date = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    const sales = await Sale.find(query).sort({ sale_date: -1 });
     res.json({ sales });
   } catch (error) {
-    console.error("Error fetching today's sales:", error);
+    console.error("Error fetching sales:", error);
     res.status(500).json({ error: "Something went wrong." });
   }
 }
+
 
 
 // Delete sales
