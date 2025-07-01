@@ -1,24 +1,57 @@
-const express = require("express")
-const {connectMongoDB} = require("./config/connection")
-const inventoryRouter = require("./routes/inventoryRouter")
-const saleRouter = require("./routes/saleRouter")
-const reportRouter = require("./routes/reportRouter")
+require('dotenv').config();
+const express = require("express");
+const { connectMongoDB } = require("./config/connection");
+const inventoryRouter = require("./routes/inventoryRouter");
+const saleRouter = require("./routes/saleRouter");
+const userRouter = require("./routes/User");
+const reportRouter = require("./routes/reportRouter");
+const cookieParser = require("cookie-parser");
+const { checkAuth, ristrictTo } = require("./middleware/auth");
+const cluster = require("cluster");
+const os = require("os");
 
-const app = express()
+const numCPUs = os.cpus().length;
+const port = process.env.PORT || 5000;
 
-connectMongoDB("mongodb://127.0.0.1:27017/petShop")
+if (cluster.isMaster) {
+  console.log(`🔧 Master ${process.pid} is running`);
+  
+  // Fork workers
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
 
-app.use(express.json())
+  // Restart dead workers
+  cluster.on("exit", (worker, code, signal) => {
+    console.log(` Worker ${worker.process.pid} died. Restarting...`);
+    cluster.fork();
+  });
+} else {
+  // Worker processes share the same TCP connection
 
-app.get("/",(req,res)=>{
-    res.send("Hello from server.")
-})
-app.use("/inventory",inventoryRouter)
-app.use("/sales",saleRouter)
-app.use("/report", reportRouter)
+  // Connect to MongoDB
+  connectMongoDB(process.env.MONGO_URI);
 
+  const app = express();
 
+  // Middleware
+  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json());
+  app.use(cookieParser());
+  app.use(checkAuth);
 
+  // Routes
+  app.get("/", (req, res) => {
+    res.send(`Hello from worker ${process.pid}`);
+  });
 
+  app.use("/user", userRouter);
+  app.use("/inventory", ristrictTo(['NORMAL', 'ADMIN']), inventoryRouter);
+  app.use("/sales", ristrictTo(['NORMAL', 'ADMIN']), saleRouter);
+  app.use("/report", ristrictTo(['ADMIN']), reportRouter);
 
-app.listen(4000,()=> console.log("server started at localhost 4000"))
+  // Start server
+  app.listen(port, () => {
+    console.log(`🚀 Worker ${process.pid} started on port ${port}`);
+  });
+}

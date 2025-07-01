@@ -11,7 +11,6 @@ async function addNewItem(req, res) {
     const newItem = await Inventory.create(req.body);
     res.status(201).json({ message: "Item added successfully"});
   } catch (error) {
-    console.error("Error adding item:", error);
     res.status(500).json({ error: error.message || "Something went wrong" });
   }
 }
@@ -20,7 +19,8 @@ async function addNewItem(req, res) {
 
 async function getItems(req,res) {
   
-  try{const items = await Inventory.find({})
+  try{
+    const items = await Inventory.find({})
   res.json(items)}
   catch(error){
     res.status(500).json({error:"something went wrong."})
@@ -61,8 +61,32 @@ async function bulkUpdateItems(req, res) {
   }
 }
 
+async function deleteProduct(req, res) {
+  const { productId } = req.body;
+
+  if (!productId) {
+    return res.status(400).json({ error: "productId is required." });
+  }
+
+  try {
+    const result = await Inventory.deleteOne({ _id: productId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "Product not found." });
+    }
+
+    res.status(200).json({ message: "Product deleted successfully." });
+  } catch (error) {
+    console.error("Delete error:", error);
+    res.status(500).json({ error: "Something went wrong.", details: error.message });
+  }
+}
+
+
+
 module.exports = {
   addNewItem,
   getItems,
-  bulkUpdateItems
+  bulkUpdateItems,
+  deleteProduct
 };

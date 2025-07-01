@@ -6,6 +6,9 @@ const inventorySchema = mongoose.Schema({
         type:String,
         required : true
     },
+    description:{
+        type:String,
+    },
 
     brand:{
         type: String,
@@ -21,16 +24,17 @@ const inventorySchema = mongoose.Schema({
         type: Number,
         required : true
     },
+    
+    unitOfMeasurement:{
+        type: String,
+        required : true,
+        enum: ["kg", "liters", "g", "ml", "packs"]
+    },
 
     stockQuantity:{
         type: Number,
         required : true
 
-    },
-    unitOfMeasurement:{
-        type: String,
-        required : true,
-        enum: ["pieces", "kg", "liters", "g", "ml", "packs"]
     },
 
       expireDate: {
@@ -41,9 +45,9 @@ const inventorySchema = mongoose.Schema({
 
 },{timestamps:true})
 
-inventorySchema.virtual('totalValue').get(function () {
-    return this.price * this.stockQuantity;
-})
+// inventorySchema.virtual('totalValue').get(function () {
+//     return this.price * this.stockQuantity;
+// })
 
 inventorySchema.set('toObject', { virtuals: true });
 inventorySchema.set('toJSON', { virtuals: true });
