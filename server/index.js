@@ -1,5 +1,6 @@
-require('dotenv').config();
+require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { connectMongoDB } = require("./config/connection");
 const inventoryRouter = require("./routes/inventoryRouter");
 const saleRouter = require("./routes/saleRouter");
@@ -15,7 +16,7 @@ const port = process.env.PORT || 5000;
 
 if (cluster.isMaster) {
   console.log(`🔧 Master ${process.pid} is running`);
-  
+
   // Fork workers
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
@@ -35,6 +36,12 @@ if (cluster.isMaster) {
   const app = express();
 
   // Middleware
+  app.use(
+    cors({
+      origin: "http://localhost:3000",
+      credentials: true,
+    })
+  );
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
   app.use(cookieParser());
@@ -46,9 +53,9 @@ if (cluster.isMaster) {
   });
 
   app.use("/user", userRouter);
-  app.use("/inventory", ristrictTo(['NORMAL', 'ADMIN']), inventoryRouter);
-  app.use("/sales", ristrictTo(['NORMAL', 'ADMIN']), saleRouter);
-  app.use("/report", ristrictTo(['ADMIN']), reportRouter);
+  app.use("/inventory", ristrictTo(["NORMAL", "ADMIN"]), inventoryRouter);
+  app.use("/sales", ristrictTo(["NORMAL", "ADMIN"]), saleRouter);
+  app.use("/report", ristrictTo(["ADMIN"]), reportRouter);
 
   // Start server
   app.listen(port, () => {

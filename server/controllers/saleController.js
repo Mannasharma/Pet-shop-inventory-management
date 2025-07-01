@@ -63,7 +63,9 @@ async function modifySale(req, res) {
     if (existingEntries.length !== saleIds.length) {
       const foundIds = new Set(existingEntries.map((e) => e._id.toString()));
       const missingIds = saleIds.filter((id) => !foundIds.has(id));
-      return res.status(404).json({ error: "Some sale entries not found.", missingIds });
+      return res
+        .status(404)
+        .json({ error: "Some sale entries not found.", missingIds });
     }
 
     const saleMap = new Map();
@@ -117,7 +119,7 @@ async function modifySale(req, res) {
 
 // Get sales
 async function getSales(req, res) {
-  const { id, from, to, brand, category, productName } = req.body;
+  const { id, from, to, brand, category, productName, search } = req.query;
 
   try {
     const query = {};
@@ -139,10 +141,20 @@ async function getSales(req, res) {
 
     // Filter by product name
     if (productName) {
-      query.product_Name = { $regex: new RegExp(productName, "i") };
+      query.productName = { $regex: new RegExp(productName, "i") };
     }
 
-    // Date range filter or default to today's sales
+    // Optional: search all fields
+    if (search) {
+      query.$or = [
+        { productName: { $regex: new RegExp(search, "i") } },
+        { brand: { $regex: new RegExp(search, "i") } },
+        { category: { $regex: new RegExp(search, "i") } },
+        { unitOfMeasurement: { $regex: new RegExp(search, "i") } },
+      ];
+    }
+
+    // Date range filter
     if (from || to) {
       query.sale_date = {};
       if (from) query.sale_date.$gte = new Date(from);
@@ -151,7 +163,12 @@ async function getSales(req, res) {
         toDate.setHours(23, 59, 59, 999);
         query.sale_date.$lte = toDate;
       }
-    } else {
+    }
+
+    // If no filters/search, default to today's sales
+    const hasAnyFilter =
+      id || from || to || brand || category || productName || search;
+    if (!hasAnyFilter) {
       const now = new Date();
       const startOfDay = new Date(now.setHours(0, 0, 0, 0));
       const endOfDay = new Date(now.setHours(23, 59, 59, 999));
@@ -166,8 +183,6 @@ async function getSales(req, res) {
   }
 }
 
-
-
 // Delete sales
 async function deleteSales(req, res) {
   try {
@@ -181,7 +196,9 @@ async function deleteSales(req, res) {
     const salesToDelete = await Sale.find({ _id: { $in: saleIds } });
 
     if (salesToDelete.length === 0) {
-      return res.status(404).json({ error: "No sales found with the provided IDs." });
+      return res
+        .status(404)
+        .json({ error: "No sales found with the provided IDs." });
     }
 
     // Step 2: Prepare inventory update
@@ -217,7 +234,6 @@ async function deleteSales(req, res) {
     res.status(500).json({ error: "Something went wrong." });
   }
 }
-
 
 // Delete all sales
 async function deleteAllSales(req, res) {

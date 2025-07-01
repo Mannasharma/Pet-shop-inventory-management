@@ -1,15 +1,23 @@
-const Inventory = require("../models/Inventory")
+const Inventory = require("../models/Inventory");
 
 // Add new product.
 
 async function addNewItem(req, res) {
-  if (!req.body) {
-    return res.status(400).json({ error: "No item given " });
+  if (!req.body || (Array.isArray(req.body) && req.body.length === 0)) {
+    return res.status(400).json({ error: "No item(s) given" });
   }
-  
+
   try {
-    const newItem = await Inventory.create(req.body);
-    res.status(201).json({ message: "Item added successfully"});
+    let result;
+    if (Array.isArray(req.body)) {
+      result = await Inventory.insertMany(req.body);
+      res
+        .status(201)
+        .json({ message: "Items added successfully", count: result.length });
+    } else {
+      result = await Inventory.create(req.body);
+      res.status(201).json({ message: "Item added successfully" });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message || "Something went wrong" });
   }
@@ -17,24 +25,24 @@ async function addNewItem(req, res) {
 
 // Get items.
 
-async function getItems(req,res) {
-  
-  try{
-    const items = await Inventory.find({})
-  res.json(items)}
-  catch(error){
-    res.status(500).json({error:"something went wrong."})
+async function getItems(req, res) {
+  try {
+    const items = await Inventory.find({});
+    res.json(items);
+  } catch (error) {
+    res.status(500).json({ error: "something went wrong." });
   }
-  
 }
 
-// update stock 
+// update stock
 
 async function bulkUpdateItems(req, res) {
   const updates = req.body; // expecting an array of objects
 
   if (!Array.isArray(updates) || updates.length === 0) {
-    return res.status(400).json({ error: "No update data provided or invalid format" });
+    return res
+      .status(400)
+      .json({ error: "No update data provided or invalid format" });
   }
 
   try {
@@ -57,7 +65,11 @@ async function bulkUpdateItems(req, res) {
     });
   } catch (error) {
     console.error("Bulk update error:", error);
-    res.status(500).json({ error: error.message || "Something went wrong during bulk update" });
+    res
+      .status(500)
+      .json({
+        error: error.message || "Something went wrong during bulk update",
+      });
   }
 }
 
@@ -78,15 +90,15 @@ async function deleteProduct(req, res) {
     res.status(200).json({ message: "Product deleted successfully." });
   } catch (error) {
     console.error("Delete error:", error);
-    res.status(500).json({ error: "Something went wrong.", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Something went wrong.", details: error.message });
   }
 }
-
-
 
 module.exports = {
   addNewItem,
   getItems,
   bulkUpdateItems,
-  deleteProduct
+  deleteProduct,
 };

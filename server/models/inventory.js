@@ -28,7 +28,7 @@ const inventorySchema = mongoose.Schema({
     unitOfMeasurement:{
         type: String,
         required : true,
-        enum: ["kg", "liters", "g", "ml", "packs"]
+        enum: ["kg", "l", "g", "ml", "pieces"]
     },
 
     stockQuantity:{
