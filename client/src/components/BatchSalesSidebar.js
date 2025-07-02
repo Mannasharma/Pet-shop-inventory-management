@@ -1,6 +1,5 @@
 import React, { useState, useRef } from "react";
 import { X, Plus, Trash2, Edit2 } from "lucide-react";
-import { inventoryItems } from "../data/mockData";
 
 const unitOptions = ["kg", "g", "l", "ml", "pieces"];
 
@@ -49,6 +48,8 @@ const BatchSalesSidebar = ({
       product_search: item.name,
       expiry: item.expiry,
       unit: item.unit,
+      quantity_sold: "",
+      revenue: "",
     }));
     setActiveDropdown(false);
   };
@@ -72,8 +73,18 @@ const BatchSalesSidebar = ({
       setError("Invalid product selected.");
       return;
     }
-    if (Number(form.quantity_sold) > Number(inv.stock)) {
-      setError("Cannot sell more than available stock.");
+    // Calculate total quantity for this product in the batch (excluding the row being edited)
+    const totalInBatch = batch.reduce((sum, row, idx) => {
+      if (row.pet_food_id === form.pet_food_id && idx !== editingIdx) {
+        return sum + Number(row.quantity_sold);
+      }
+      return sum;
+    }, 0);
+    const newTotal = totalInBatch + Number(form.quantity_sold);
+    if (newTotal > Number(inv.stock)) {
+      setError(
+        `Cannot sell more than available stock. (Requested: ${newTotal}, Available: ${inv.stock})`
+      );
       return;
     }
     if (editingIdx !== null) {
@@ -102,6 +113,8 @@ const BatchSalesSidebar = ({
 
   const handleSubmitAll = async () => {
     // Validate all
+    // Build a map of total quantity per product
+    const productTotals = {};
     for (const row of batch) {
       if (
         !row.pet_food_id ||
@@ -119,8 +132,14 @@ const BatchSalesSidebar = ({
         setError("Invalid product selected.");
         return;
       }
-      if (Number(row.quantity_sold) > Number(inv.stock)) {
-        setError("Cannot sell more than available stock.");
+      productTotals[row.pet_food_id] =
+        (productTotals[row.pet_food_id] || 0) + Number(row.quantity_sold);
+      if (productTotals[row.pet_food_id] > Number(inv.stock)) {
+        setError(
+          `Cannot sell more than available stock for ${inv.name}. (Requested: ${
+            productTotals[row.pet_food_id]
+          }, Available: ${inv.stock})`
+        );
         return;
       }
     }
@@ -196,48 +215,61 @@ const BatchSalesSidebar = ({
             }`}
           >
             <div className="flex flex-col gap-3">
-              <input
-                id="product_search"
-                name="product_search"
-                value={form.product_search}
-                onChange={handleChange}
-                placeholder="Product Name"
-                autoComplete="off"
-                className={`rounded-lg px-4 py-3 text-base border w-full transition-colors duration-300 focus:ring-2 focus:ring-blue-500 ${
-                  isDarkMode
-                    ? "bg-gray-900 border-gray-700 text-white"
-                    : "bg-white border-gray-300 text-gray-900"
-                }`}
-                onFocus={() => setActiveDropdown(true)}
-                ref={searchRef}
-                disabled={isInventoryEmpty}
-              />
-              {activeDropdown &&
-                getFilteredProducts(form.product_search || "").length > 0 && (
-                  <div
-                    className={`absolute z-50 mt-1 w-full rounded-lg shadow-lg max-h-56 overflow-auto ${
-                      isDarkMode
-                        ? "bg-gray-800 border border-gray-700 text-white"
-                        : "bg-gray-200 border border-gray-300 text-gray-900"
-                    }`}
-                  >
-                    {getFilteredProducts(form.product_search || "").map(
-                      (item) => (
-                        <div
-                          key={item.id}
-                          className={`px-6 py-3 cursor-pointer ${
-                            isDarkMode
-                              ? "hover:bg-gray-700"
-                              : "hover:bg-gray-300"
-                          }`}
-                          onClick={() => handleSelectProduct(item)}
-                        >
-                          {item.name} (Stock: {item.stock})
-                        </div>
-                      )
-                    )}
-                  </div>
-                )}
+              {/* Product Search Label and Input with Dropdown */}
+              <div className="relative w-full">
+                <label
+                  htmlFor="product_search"
+                  className={`mb-1 font-semibold text-base ${
+                    isDarkMode ? "text-gray-200" : "text-gray-700"
+                  }`}
+                >
+                  Product Name
+                </label>
+                <input
+                  id="product_search"
+                  name="product_search"
+                  value={form.product_search}
+                  onChange={handleChange}
+                  placeholder="Type or select a product..."
+                  autoComplete="off"
+                  className={`rounded-lg px-4 py-3 text-base border-2 w-full transition-colors duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:shadow-lg outline-none ${
+                    isDarkMode
+                      ? "bg-gray-900 border-blue-400 text-white placeholder-gray-400"
+                      : "bg-white border-blue-600 text-gray-900 placeholder-gray-500"
+                  }`}
+                  onFocus={() => setActiveDropdown(true)}
+                  ref={searchRef}
+                  disabled={isInventoryEmpty}
+                  style={{ zIndex: 2, position: "relative" }}
+                />
+                {activeDropdown &&
+                  getFilteredProducts(form.product_search || "").length > 0 && (
+                    <div
+                      className={`absolute left-0 mt-1 w-full rounded-lg shadow-lg max-h-56 overflow-auto border z-50 ${
+                        isDarkMode
+                          ? "bg-gray-800 border-gray-700 text-white"
+                          : "bg-gray-200 border-gray-300 text-gray-900"
+                      }`}
+                      style={{ top: "100%" }}
+                    >
+                      {getFilteredProducts(form.product_search || "").map(
+                        (item) => (
+                          <div
+                            key={item.id}
+                            className={`px-6 py-3 cursor-pointer ${
+                              isDarkMode
+                                ? "hover:bg-gray-700"
+                                : "hover:bg-gray-300"
+                            }`}
+                            onClick={() => handleSelectProduct(item)}
+                          >
+                            {item.name} (Stock: {item.stock})
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+              </div>
               <input
                 id="quantity_sold"
                 name="quantity_sold"

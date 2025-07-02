@@ -8,6 +8,7 @@ import {
   Calendar as CalendarIcon,
   Save,
 } from "lucide-react";
+import { useRefresh } from "../context/RefreshContext";
 
 const SalesDetails = ({
   isDarkMode,
@@ -36,8 +37,12 @@ const SalesDetails = ({
   const [showToast, setShowToast] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [filteredSales, setFilteredSales] = useState([]);
+  const [selectedSales, setSelectedSales] = useState([]);
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(false);
   const fromDateInputRef = useRef();
   const toDateInputRef = useRef();
+  const { triggerRefresh } = useRefresh();
 
   // Helper to get product info by id from current inventory, fallback to sale fields
   const getProductById = (id) =>
@@ -50,6 +55,14 @@ const SalesDetails = ({
     getProductById(sale.pet_food_id)?.brand || sale.brand || "";
   const getProductUnit = (sale) =>
     getProductById(sale.pet_food_id)?.unit || sale.unitOfMeasurement || "";
+
+  // Helper to format date to YYYY-MM-DD
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return d.toISOString().slice(0, 10);
+  };
 
   // Fetch all sales by default
   useEffect(() => {
@@ -70,10 +83,21 @@ const SalesDetails = ({
     e && e.preventDefault();
     setLoading(true);
     setHasSearched(true);
-    if (searchText) {
-      await fetchSales({ search: searchText }); // search all fields
-    } else {
-      await fetchSales(); // show today's sales
+    if (!searchText && !fromDate && !toDate) {
+      // All fields empty: show today's sales
+      await fetchSales();
+    } else if (searchText) {
+      // Search all fields and filter by date if set
+      const filters = { search: searchText };
+      if (fromDate) filters.from = fromDate;
+      if (toDate) filters.to = toDate;
+      await fetchSales(filters);
+    } else if (fromDate || toDate) {
+      // Only date filter
+      const filters = {};
+      if (fromDate) filters.from = fromDate;
+      if (toDate) filters.to = toDate;
+      await fetchSales(filters);
     }
     setLoading(false);
   };
@@ -84,7 +108,7 @@ const SalesDetails = ({
     setFromDate("");
     setToDate("");
     setLoading(true);
-    await fetchSales(); // fetch all sales
+    await fetchSales(); // show today's sales
     setLoading(false);
     setHasSearched(false);
   };
@@ -127,6 +151,46 @@ const SalesDetails = ({
     setTimeout(() => setShowToast(false), 2000);
   };
 
+  // Helper: toggle selection
+  const toggleSaleSelection = (id) => {
+    setSelectedSales((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
+    );
+  };
+  const selectAll = () => {
+    if (selectedSales.length === filteredSales.length) {
+      setSelectedSales([]);
+    } else {
+      setSelectedSales(filteredSales.map((sale) => sale.id));
+    }
+  };
+
+  // Batch delete handler
+  const handleBatchDelete = async () => {
+    if (selectedSales.length === 0) return;
+    try {
+      await deleteSales(selectedSales);
+      setSelectedSales([]);
+      setShowBatchDeleteModal(false);
+    } catch (error) {
+      // handle error
+    }
+  };
+
+  // Example: after a successful add, update, or delete
+  const handleAddSales = async (sales) => {
+    await addSales(sales);
+    triggerRefresh();
+  };
+  const handleUpdateSales = async (sales) => {
+    await updateSales(sales);
+    triggerRefresh();
+  };
+  const handleDeleteSales = async (ids) => {
+    await deleteSales(ids);
+    triggerRefresh();
+  };
+
   return (
     <div
       className={`rounded-xl shadow-sm border p-6 transition-all duration-300 ${
@@ -135,24 +199,19 @@ const SalesDetails = ({
           : "bg-white border-gray-200 shadow-gray-200/50"
       }`}
     >
-      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <h3
-          className={`text-lg font-semibold transition-colors duration-300 ${
-            isDarkMode ? "text-white" : "text-gray-900"
-          }`}
-        >
-          Sales Details
-        </h3>
+      {/* Unified Controls Row */}
+      <div className="flex flex-wrap gap-3 items-center justify-between mb-6 w-full">
         <form
           onSubmit={handleSearch}
-          className="flex flex-wrap gap-3 items-center justify-center flex-1 sm:mx-6"
+          className="flex flex-wrap gap-3 items-center min-w-0 flex-1"
+          style={{ flexBasis: 0 }}
         >
           <input
             type="text"
             placeholder="Search by product name, category, brand, unit..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className={`rounded-lg px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+            className={`rounded-lg px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[180px] ${
               isDarkMode
                 ? "text-gray-100 placeholder-gray-400 bg-gray-900"
                 : "text-gray-900 placeholder-gray-500 bg-white"
@@ -165,12 +224,11 @@ const SalesDetails = ({
               ref={fromDateInputRef}
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+              className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[130px] ${
                 isDarkMode
                   ? "text-gray-100 placeholder-gray-400 bg-gray-900"
                   : "text-gray-900 placeholder-gray-500 bg-white"
               }`}
-              style={{ minWidth: 130 }}
             />
             <CalendarIcon
               size={18}
@@ -188,12 +246,11 @@ const SalesDetails = ({
               ref={toDateInputRef}
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+              className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[130px] ${
                 isDarkMode
                   ? "text-gray-100 placeholder-gray-400 bg-gray-900"
                   : "text-gray-900 placeholder-gray-500 bg-white"
               }`}
-              style={{ minWidth: 130 }}
             />
             <CalendarIcon
               size={18}
@@ -221,18 +278,88 @@ const SalesDetails = ({
             </button>
           )}
         </form>
-        <button
-          onClick={() => setBatchSalesOpen(true)}
-          className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 ${
-            isDarkMode
-              ? "bg-green-700 text-white hover:bg-green-600"
-              : "bg-success-500 text-white hover:bg-success-600"
-          }`}
-          aria-label="Batch Sales"
-        >
-          Batch Sales
-        </button>
+        {/* Operation Buttons - always in the same row, right-aligned */}
+        <div className="flex flex-wrap gap-2 items-center justify-end">
+          {!deleteMode ? (
+            <>
+              <button
+                onClick={() => setBatchSalesOpen(true)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 ${
+                  isDarkMode
+                    ? "bg-green-700 text-white hover:bg-green-600"
+                    : "bg-success-500 text-white hover:bg-success-600"
+                }`}
+                aria-label="Batch Sales"
+              >
+                Batch Sales
+              </button>
+              <button
+                onClick={() => setDeleteMode(true)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 ml-2 ${
+                  isDarkMode
+                    ? "bg-red-700 text-white hover:bg-red-600"
+                    : "bg-danger-500 text-white hover:bg-danger-600"
+                }`}
+                aria-label="Enter Delete Mode"
+              >
+                Delete
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowBatchDeleteModal(true)}
+                disabled={selectedSales.length === 0}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 ${
+                  selectedSales.length === 0
+                    ? isDarkMode
+                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : isDarkMode
+                    ? "bg-red-700 text-white hover:bg-red-600"
+                    : "bg-danger-500 text-white hover:bg-danger-600"
+                }`}
+                aria-label="Delete Selected Sales"
+              >
+                Delete Selected
+              </button>
+              <button
+                onClick={() => {
+                  setDeleteMode(false);
+                  setSelectedSales([]);
+                }}
+                className={`px-4 py-2 rounded-lg font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 ml-2 ${
+                  isDarkMode
+                    ? "bg-transparent text-white border-gray-500 hover:bg-gray-700"
+                    : "bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                }`}
+                aria-label="Cancel Delete Mode"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setBatchSalesOpen(true)}
+                className={`px-4 py-2 rounded-lg font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 ml-2 ${
+                  isDarkMode
+                    ? "bg-transparent text-green-300 border-green-700 hover:bg-green-900/10"
+                    : "bg-white text-success-600 border-success-400 hover:bg-success-50"
+                }`}
+                aria-label="Batch Sales"
+              >
+                Batch Sales
+              </button>
+            </>
+          )}
+        </div>
       </div>
+      {/* Heading above table */}
+      <h3
+        className={`text-lg font-bold mb-2 ${
+          isDarkMode ? "text-white" : "text-gray-900"
+        }`}
+      >
+        Sales Details
+      </h3>
       {loading ? (
         <div className="py-16 text-center text-lg text-gray-400">
           Loading sales...
@@ -242,6 +369,19 @@ const SalesDetails = ({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className={isDarkMode ? "bg-gray-700" : "bg-gray-50"}>
               <tr>
+                {deleteMode && (
+                  <th className="px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedSales.length === filteredSales.length &&
+                        filteredSales.length > 0
+                      }
+                      onChange={selectAll}
+                      aria-label="Select all sales"
+                    />
+                  </th>
+                )}
                 <th
                   className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     isDarkMode ? "text-gray-300" : "text-gray-500"
@@ -310,7 +450,7 @@ const SalesDetails = ({
               {filteredSales.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={deleteMode ? 9 : 8}
                     className={`py-16 text-center animate-fade-in align-middle ${
                       isDarkMode ? "text-gray-400" : "text-gray-500"
                     }`}
@@ -430,6 +570,16 @@ const SalesDetails = ({
                       } focus-within:ring-2 focus-within:ring-green-400`}
                       tabIndex={0}
                     >
+                      {deleteMode && (
+                        <td className="px-4 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedSales.includes(sale.id)}
+                            onChange={() => toggleSaleSelection(sale.id)}
+                            aria-label={`Select sale ${getProductName(sale)}`}
+                          />
+                        </td>
+                      )}
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                           isDarkMode ? "text-white" : "text-gray-900"
@@ -439,7 +589,7 @@ const SalesDetails = ({
                       </td>
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          isDarkMode ? "text-yellow-200" : "text-yellow-700"
+                          isDarkMode ? "text-blue-300" : "text-blue-700"
                         }`}
                       >
                         {getProductBrand(sale)}
@@ -453,21 +603,21 @@ const SalesDetails = ({
                       </td>
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          isDarkMode ? "text-yellow-200" : "text-yellow-700"
+                          isDarkMode ? "text-gray-400" : "text-gray-600"
                         }`}
                       >
                         {getProductUnit(sale)}
                       </td>
                       <td
-                        className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          isDarkMode ? "text-yellow-200" : "text-yellow-700"
+                        className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                          isDarkMode ? "text-yellow-300" : "text-yellow-700"
                         }`}
                       >
                         {sale.quantity_sold}
                       </td>
                       <td
-                        className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          isDarkMode ? "text-green-300" : "text-success-600"
+                        className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
+                          isDarkMode ? "text-green-400" : "text-success-600"
                         }`}
                       >
                         ₹{Number(sale.revenue).toLocaleString()}
@@ -477,7 +627,7 @@ const SalesDetails = ({
                           isDarkMode ? "text-gray-300" : "text-gray-700"
                         }`}
                       >
-                        {sale.sale_date}
+                        {formatDate(sale.sale_date)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
                         <button
@@ -493,16 +643,6 @@ const SalesDetails = ({
                           title="Edit"
                         >
                           <Edit2 size={20} />
-                        </button>
-                        <button
-                          className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 transition"
-                          onClick={() => {
-                            setDeleteIdx(idx);
-                            setDeleteSale(sale);
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 size={20} />
                         </button>
                       </td>
                     </tr>
@@ -563,6 +703,43 @@ const SalesDetails = ({
                   setDeleteIdx(null);
                   setDeleteSale(null);
                 }}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
+                  isDarkMode
+                    ? "bg-gray-700 text-white hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                }`}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Batch Delete confirmation popup */}
+      {showBatchDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div
+            className={`rounded-xl shadow-lg p-8 w-full max-w-xs text-center ${
+              isDarkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+            }`}
+          >
+            <div className="mb-4 text-lg font-semibold">
+              Are you sure you want to delete {selectedSales.length} selected
+              sale(s)?
+            </div>
+            <div className="flex justify-center gap-4 mt-6">
+              <button
+                onClick={handleBatchDelete}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
+                  isDarkMode
+                    ? "bg-red-600 text-white hover:bg-red-500"
+                    : "bg-danger-500 text-white hover:bg-danger-600"
+                }`}
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setShowBatchDeleteModal(false)}
                 className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
                   isDarkMode
                     ? "bg-gray-700 text-white hover:bg-gray-600"

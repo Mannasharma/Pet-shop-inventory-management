@@ -5,6 +5,17 @@ const API_BASE_URL =
 const handleResponse = async (response) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    // Suppress error overlays for expected auth errors
+    if (
+      response.status === 401 ||
+      (errorData.error &&
+        errorData.error.toLowerCase().includes("no user found"))
+    ) {
+      return {
+        error: errorData.error || "no user found",
+        status: response.status,
+      };
+    }
     throw new Error(
       errorData.error || `HTTP error! status: ${response.status}`
     );
@@ -114,6 +125,21 @@ export const reportsAPI = {
     return apiRequest("/report", {
       method: "POST",
       body: JSON.stringify(filters),
+    });
+  },
+};
+
+// Auth API functions
+export const authAPI = {
+  login: async (username, password) => {
+    return apiRequest("/user/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+  },
+  logout: async () => {
+    return apiRequest("/user/logout", {
+      method: "POST",
     });
   },
 };

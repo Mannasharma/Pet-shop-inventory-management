@@ -18,7 +18,6 @@ export const transformInventoryFromBackend = (backendItems) => {
     expiry: item.expireDate
       ? new Date(item.expireDate).toISOString().slice(0, 10)
       : "",
-    description: item.description || "",
     minStock: 5, // Default minimum stock
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -39,7 +38,6 @@ export const transformInventoryToBackend = (frontendItems) => {
     stockQuantity: Number(item.stock),
     unitOfMeasurement: item.unit,
     expireDate: item.expiry ? new Date(item.expiry) : new Date(),
-    description: item.description || "",
   }));
 };
 
@@ -69,7 +67,8 @@ export const transformSalesToBackend = (frontendSales) => {
     : [frontendSales];
 
   return salesArray.map((sale) => ({
-    _id: sale.id || sale._id,
+    // Always send _id for backend updates (use id if present)
+    _id: sale._id || sale.id,
     pet_food_id: sale.pet_food_id,
     productName: sale.productName,
     brand: sale.brand,
@@ -94,7 +93,6 @@ export const transformInventoryUpdateToBackend = (frontendItem) => {
     expireDate: frontendItem.expiry
       ? new Date(frontendItem.expiry)
       : new Date(),
-    description: frontendItem.description || "",
   };
 };
 

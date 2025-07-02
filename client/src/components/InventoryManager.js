@@ -10,9 +10,7 @@ import {
   Search as SearchIcon,
 } from "lucide-react";
 import BatchSalesSidebar from "./BatchSalesSidebar";
-
-const getDefaultDescription = (item) =>
-  `Brand ${item.brand}, ${item.category} product, expires on ${item.expiry}`;
+import { useRefresh } from "../context/RefreshContext";
 
 const InventoryManager = ({
   isDarkMode = false,
@@ -33,6 +31,7 @@ const InventoryManager = ({
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState("");
   const [batchSalesOpen, setBatchSalesOpen] = useState(false);
+  const { triggerRefresh } = useRefresh();
 
   const handleDelete = (id) => {
     setDeleteId(id);
@@ -41,6 +40,7 @@ const InventoryManager = ({
   const confirmDelete = () => {
     deleteInventory(deleteId); // Use API function
     setDeleteId(null);
+    triggerRefresh();
   };
 
   const cancelDelete = () => {
@@ -60,6 +60,7 @@ const InventoryManager = ({
         )
       );
       setShowSalesId(null);
+      triggerRefresh();
     }
   };
 
@@ -76,36 +77,12 @@ const InventoryManager = ({
     updateInventory({ productId: editId, ...editForm }); // Use API function
     setEditId(null);
     setEditForm({});
+    triggerRefresh();
   };
   const handleEditCancel = () => {
     setEditId(null);
     setEditForm({});
   };
-
-  // Description tooltip
-  const renderDescTooltip = (item) => (
-    <div
-      className={`absolute z-40 mt-2 min-w-[180px] max-w-xs px-5 py-4 rounded-xl shadow-xl border text-sm transition-all duration-200 ${
-        isDarkMode
-          ? "bg-gray-800 border-gray-700 text-gray-100"
-          : "bg-white border-gray-200 text-gray-900"
-      }`}
-      style={{
-        left: "50%",
-        transform: "translateX(-50%)",
-        overflow: "visible",
-      }}
-    >
-      <div className="font-semibold text-base mb-1">Description</div>
-      <div className="text-gray-400 text-xs mb-2">Product details</div>
-      <div
-        className={isDarkMode ? "text-gray-200" : "text-gray-700"}
-        style={{ overflow: "visible", whiteSpace: "pre-line" }}
-      >
-        {item.description || getDefaultDescription(item)}
-      </div>
-    </div>
-  );
 
   // Show all products in inventory (including manually added)
   const filteredInventory = inventory.filter((item) => {
@@ -117,10 +94,23 @@ const InventoryManager = ({
       String(item.price).toLowerCase().includes(q) ||
       String(item.stock).toLowerCase().includes(q) ||
       item.unit.toLowerCase().includes(q) ||
-      item.expiry.toLowerCase().includes(q) ||
-      (item.description && item.description.toLowerCase().includes(q))
+      item.expiry.toLowerCase().includes(q)
     );
   });
+
+  // Example: after a successful add, update, or delete
+  const handleAddInventory = async (items) => {
+    await addInventory(items);
+    triggerRefresh();
+  };
+  const handleUpdateInventory = async (item) => {
+    await updateInventory(item);
+    triggerRefresh();
+  };
+  const handleDeleteInventory = async (id) => {
+    await deleteInventory(id);
+    triggerRefresh();
+  };
 
   return (
     <div
@@ -350,16 +340,22 @@ const InventoryManager = ({
                       />
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
-                      <input
+                      <select
                         name="unit"
                         value={editForm.unit}
                         onChange={handleEditChange}
-                        className={`rounded px-2 py-1 w-14 ${
+                        className={`rounded px-2 py-1 w-20 ${
                           isDarkMode
                             ? "bg-gray-700 text-white"
                             : "bg-gray-100 text-gray-900"
                         }`}
-                      />
+                      >
+                        <option value="kg">kg</option>
+                        <option value="l">l</option>
+                        <option value="g">g</option>
+                        <option value="ml">ml</option>
+                        <option value="pieces">pieces</option>
+                      </select>
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
                       <input
@@ -473,21 +469,6 @@ const InventoryManager = ({
                       >
                         <Edit2 size={16} />
                       </button>
-                      <div className="relative group">
-                        <button
-                          onClick={() =>
-                            setShowDescId(
-                              showDescId === item.id ? null : item.id
-                            )
-                          }
-                          className={`p-2 rounded transition-all duration-200 ${
-                            isDarkMode ? "text-yellow-300" : "text-yellow-500"
-                          }`}
-                        >
-                          <Info size={16} />
-                        </button>
-                        {showDescId === item.id && renderDescTooltip(item)}
-                      </div>
                     </td>
                   </>
                 )}

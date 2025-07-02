@@ -66,9 +66,9 @@ const InventorySidebar = ({
     }
     try {
       await addInventory({ ...form }); // Use API-integrated function
-      setForm(emptyForm);
+    setForm(emptyForm);
       setErrorMsg("");
-      onClose();
+    onClose();
     } catch (error) {
       setErrorMsg("Failed to add product.");
     }
@@ -115,9 +115,9 @@ const InventorySidebar = ({
   const handleMultiSubmit = async () => {
     try {
       await addInventory(multiBatch); // Use API-integrated function
-      setMultiBatch([]);
-      setForm(emptyForm);
-      onClose();
+    setMultiBatch([]);
+    setForm(emptyForm);
+    onClose();
     } catch (error) {
       setErrorMsg("Failed to add products.");
     }
@@ -259,17 +259,6 @@ const InventorySidebar = ({
                   : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
               }`}
             />
-            <input
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Description (optional)"
-              className={`rounded-lg px-4 py-2 border transition-colors duration-300 ${
-                isDarkMode
-                  ? "bg-gray-800 border-gray-700 text-white placeholder-gray-400"
-                  : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
-              }`}
-            />
             <div className="flex gap-2 justify-end mt-2">
               {mode === "multi" && (
                 <button
@@ -384,15 +373,6 @@ const InventorySidebar = ({
                       {item.brand} | {item.category} | ₹{item.price} |{" "}
                       {item.stock} {item.unit} | Exp: {item.expiry}
                     </div>
-                    {item.expiry && (
-                      <div
-                        className={`text-xs mt-1 font-medium ${
-                          isDarkMode ? "text-white" : "text-black"
-                        }`}
-                      >
-                        {item.description || getDefaultDescription(item)}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -404,4 +384,4 @@ const InventorySidebar = ({
   );
 };
 
-export default InventorySidebar;
+export default InventorySidebar; 

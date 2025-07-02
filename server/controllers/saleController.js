@@ -10,6 +10,40 @@ async function addNewSale(req, res) {
   }
 
   try {
+    // Fetch all relevant inventory items in one query
+    const inventoryIds = entries.map((item) => item.pet_food_id);
+    const inventoryItems = await Inventory.find({ _id: { $in: inventoryIds } });
+    const inventoryMap = new Map();
+    inventoryItems.forEach((inv) => {
+      inventoryMap.set(inv._id.toString(), inv);
+    });
+
+    // Check for stock availability
+    const insufficientStock = [];
+    for (const item of entries) {
+      const inv = inventoryMap.get(item.pet_food_id.toString());
+      if (!inv) {
+        insufficientStock.push({
+          pet_food_id: item.pet_food_id,
+          reason: "Product not found in inventory.",
+        });
+      } else if (inv.stockQuantity < item.quantity_sold) {
+        insufficientStock.push({
+          pet_food_id: item.pet_food_id,
+          productName: inv.productName,
+          available: inv.stockQuantity,
+          requested: item.quantity_sold,
+          reason: "Insufficient stock.",
+        });
+      }
+    }
+    if (insufficientStock.length > 0) {
+      return res.status(400).json({
+        error: "Insufficient stock for one or more products.",
+        details: insufficientStock,
+      });
+    }
+
     const bulkOps = entries.map((item) => ({
       updateOne: {
         filter: { pet_food_id: item.pet_food_id, sale_date: item.sale_date },
@@ -88,6 +122,7 @@ async function modifySale(req, res) {
           brand: newEntry.brand,
           category: newEntry.category,
           unitOfMeasurement: newEntry.unitOfMeasurement,
+          sale_date: newEntry.sale_date,
         },
       };
     });

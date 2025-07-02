@@ -65,11 +65,9 @@ async function bulkUpdateItems(req, res) {
     });
   } catch (error) {
     console.error("Bulk update error:", error);
-    res
-      .status(500)
-      .json({
-        error: error.message || "Something went wrong during bulk update",
-      });
+    res.status(500).json({
+      error: error.message || "Something went wrong during bulk update",
+    });
   }
 }
 

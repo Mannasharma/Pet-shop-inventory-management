@@ -9,8 +9,13 @@ import InventoryManager from "./components/InventoryManager";
 import InventorySidebar from "./components/InventorySidebar";
 import SalesDetails from "./components/SalesDetails";
 import Reports from "./components/Reports";
-import { ShoppingCart, DollarSign, Package } from "lucide-react";
-import { inventoryAPI, salesAPI, handleAPIError } from "./services/api";
+import { ShoppingCart, DollarSign, Package, IndianRupee } from "lucide-react";
+import {
+  inventoryAPI,
+  salesAPI,
+  handleAPIError,
+  authAPI,
+} from "./services/api";
 import {
   transformInventoryFromBackend,
   transformInventoryToBackend,
@@ -19,97 +24,66 @@ import {
   transformSalesToBackend,
   toInputDateString,
 } from "./utils/dataTransformers";
+import Login from "./components/Login";
+
+function getMonthStartDateString() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function getTodayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getLast7DaysRange() {
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(today.getDate() - 6);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: today.toISOString().slice(0, 10),
+  };
+}
+
+function getLast7DaysRangeArray(fromDate) {
+  const days = [];
+  const from = new Date(fromDate);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(from);
+    d.setDate(from.getDate() + i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+function hasUidCookie() {
+  return document.cookie.split(";").some((c) => c.trim().startsWith("uid="));
+}
 
 function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Detect system theme preference on mount
+  const getSystemTheme = () =>
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const [isDarkMode, setIsDarkMode] = useState(getSystemTheme());
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState("single"); // 'single' or 'multi'
   const [inventory, setInventory] = useState([]);
   const [salesDetails, setSalesDetails] = useState([]);
-
-  // --- Dashboard Dynamic Data ---
-  // Today's date in yyyy-mm-dd
-  const today = new Date().toISOString().slice(0, 10);
-  // Today's revenue
-  const todaysSales = salesDetails.filter((sale) => sale.sale_date === today);
-  const todayRevenue = {
-    amount: todaysSales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
-    percentage: 0, // You can add logic for percentage change if needed
-    trend: "up",
-  };
-  // Last 30 days revenue
-  const getLast30Days = () => {
-    const days = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push(d.toISOString().slice(0, 10));
-    }
-    return days;
-  };
-  const last30Days = getLast30Days();
-  const last30DaysRevenue = salesDetails
-    .filter((sale) => last30Days.includes(sale.sale_date))
-    .reduce((sum, sale) => sum + Number(sale.revenue), 0);
-  const fromDate30 = last30Days[0];
-  const toDate30 = last30Days[last30Days.length - 1];
-  // Stock Alerts: products with stock <= minStock (if minStock exists, else <= 5)
-  const stockAlerts = inventory.filter(
-    (item) => Number(item.stock) <= (item.minStock || 5)
+  const [monthlySales, setMonthlySales] = useState([]);
+  const [weeklySales, setWeeklySales] = useState([]);
+  const [weekRange, setWeekRange] = useState(getLast7DaysRange());
+  const [isAuthenticated, setIsAuthenticated] = useState(() => hasUidCookie());
+  const [checkingAuth, setCheckingAuth] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [userName, setUserName] = useState(
+    () => localStorage.getItem("userName") || ""
   );
-  // Weekly Data: last 7 days
-  const getLast7Days = () => {
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push(d.toISOString().slice(0, 10));
-    }
-    return days;
-  };
-  const weeklyData = getLast7Days().map((date) => {
-    const daySales = salesDetails.filter((sale) => sale.sale_date === date);
-    return {
-      day: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
-      sales: daySales.length,
-      revenue: daySales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
-    };
-  });
-  // Top Selling Products
-  const productSalesMap = {};
-  salesDetails.forEach((sale) => {
-    if (!productSalesMap[sale.pet_food_id]) {
-      productSalesMap[sale.pet_food_id] = { sales: 0, revenue: 0 };
-    }
-    productSalesMap[sale.pet_food_id].sales += Number(sale.quantity_sold);
-    productSalesMap[sale.pet_food_id].revenue += Number(sale.revenue);
-  });
-  const topSellingProducts = inventory
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      category: item.category,
-      sales: productSalesMap[item.id]?.sales || 0,
-      revenue: productSalesMap[item.id]?.revenue || 0,
-      image: "",
-    }))
-    .sort((a, b) => b.sales - a.sales)
-    .slice(0, 5);
-  // Low Stock Items
-  const lowStockItems = inventory.filter(
-    (item) => Number(item.stock) <= (item.minStock || 5)
-  );
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
-  const handleOpenSidebar = (mode) => {
-    setSidebarMode(mode);
-    setSidebarOpen(true);
-  };
-  const handleCloseSidebar = () => setSidebarOpen(false);
+  const [chartSales, setChartSales] = useState([]);
+  const [chartRange, setChartRange] = useState("week");
 
   // --- Inventory APIs using backend ---
   async function fetchInventory() {
@@ -219,7 +193,253 @@ function App() {
   useEffect(() => {
     fetchInventory();
     fetchSales();
+    // Fetch all sales for the current month
+    const monthStart = getMonthStartDateString();
+    const today = getTodayDateString();
+    salesAPI.getAll({ from: monthStart, to: today }).then((res) => {
+      setMonthlySales(res.sales || []);
+    });
+    // Fetch all sales for the last 7 days (dynamic, not hardcoded)
+    const { from, to } = getLast7DaysRange();
+    salesAPI.getAll({ from, to }).then((res) => {
+      setWeeklySales(res.sales || []);
+    });
   }, []);
+
+  // Fetch weekly sales when weekRange changes
+  useEffect(() => {
+    salesAPI.getAll({ from: weekRange.from, to: weekRange.to }).then((res) => {
+      setWeeklySales(res.sales || []);
+    });
+  }, [weekRange]);
+
+  // Calculate monthly revenue
+  const monthRevenue = monthlySales.reduce(
+    (sum, sale) => sum + Number(sale.revenue),
+    0
+  );
+
+  // Today's date in yyyy-mm-dd
+  const today = new Date().toISOString().slice(0, 10);
+  // Today's revenue
+  const todaysSales = salesDetails.filter((sale) => sale.sale_date === today);
+  const todayRevenue = {
+    amount: todaysSales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
+    percentage: 0, // You can add logic for percentage change if needed
+    trend: "up",
+  };
+  // Stock Alerts: products with stock <= minStock (if minStock exists, else <= 5)
+  const stockAlerts = inventory
+    .filter((item) => Number(item.stock) <= (item.minStock || 5))
+    .map((item) => {
+      const minStock = item.minStock || 5;
+      const percentage = (Number(item.stock) / minStock) * 100;
+      let priority = "low";
+      if (percentage <= 50) priority = "high";
+      else if (percentage <= 75) priority = "medium";
+      return {
+        id: item.id,
+        product: item.name,
+        category: item.category,
+        currentStock: item.stock,
+        minStock: minStock,
+        unit: item.unit,
+        priority,
+      };
+    });
+  // Weekly Data: last 7 days
+  const weeklyData = getLast7DaysRangeArray(weekRange.from).map((date) => {
+    const daySales = weeklySales.filter((sale) => {
+      // Normalize both to YYYY-MM-DD for comparison
+      const saleDate = new Date(sale.sale_date).toISOString().slice(0, 10);
+      return saleDate === date;
+    });
+    return {
+      day: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
+      sales: daySales.length,
+      revenue: daySales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
+    };
+  });
+  // Top Selling Products (Current Month, >0 sold, with unit)
+  const monthlyProductSalesMap = {};
+  monthlySales.forEach((sale) => {
+    if (!monthlyProductSalesMap[sale.pet_food_id]) {
+      monthlyProductSalesMap[sale.pet_food_id] = { sales: 0, revenue: 0 };
+    }
+    monthlyProductSalesMap[sale.pet_food_id].sales += Number(
+      sale.quantity_sold
+    );
+    monthlyProductSalesMap[sale.pet_food_id].revenue += Number(sale.revenue);
+  });
+  const topSellingProducts = inventory
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      sales: monthlyProductSalesMap[item.id]?.sales || 0,
+      revenue: monthlyProductSalesMap[item.id]?.revenue || 0,
+      unit: item.unit,
+      image: "",
+    }))
+    .filter((p) => p.sales > 0)
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 5);
+  // Low Stock Items (with correct fields for LowStockTable)
+  const lowStockItems = inventory
+    .filter((item) => Number(item.stock) <= (item.minStock || 5))
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      currentStock: item.stock,
+      minStock: item.minStock || 5,
+      price: item.price,
+      unit: item.unit,
+    }));
+
+  // Monthly Data: each day of current month
+  const monthStart = getMonthStartDateString();
+  const daysInMonth = [];
+  {
+    let d = new Date(monthStart);
+    const end = new Date(today);
+    while (d <= end) {
+      daysInMonth.push(new Date(d));
+      d.setDate(d.getDate() + 1);
+    }
+  }
+  const monthlyData = daysInMonth.map((date) => {
+    const dateStr = date.toISOString().slice(0, 10);
+    const daySales = monthlySales.filter((sale) => {
+      const saleDate = new Date(sale.sale_date).toISOString().slice(0, 10);
+      return saleDate === dateStr;
+    });
+    return {
+      day: date.toLocaleDateString("en-US", { day: "numeric", month: "short" }),
+      sales: daySales.length,
+      revenue: daySales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
+    };
+  });
+
+  // Last 30 Days Data
+  function getLastNDaysRangeArray(n) {
+    const days = [];
+    const today = new Date();
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    return days;
+  }
+  const last30DaysData = getLastNDaysRangeArray(30).map((date) => {
+    const daySales = salesDetails.filter((sale) => {
+      const saleDate = new Date(sale.sale_date).toISOString().slice(0, 10);
+      return saleDate === date;
+    });
+    return {
+      day: new Date(date).toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+      }),
+      sales: daySales.length,
+      revenue: daySales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
+    };
+  });
+
+  // Fetch sales data for the chart independently
+  useEffect(() => {
+    let from, to;
+    if (chartRange === "week") {
+      const range = getLast7DaysRange();
+      from = range.from;
+      to = range.to;
+    } else {
+      // last 30 days
+      const today = getTodayDateString();
+      const d = new Date();
+      d.setDate(d.getDate() - 29);
+      from = d.toISOString().slice(0, 10);
+      to = today;
+    }
+    salesAPI.getAll({ from, to }).then((res) => {
+      setChartSales(res.sales || []);
+    });
+  }, [chartRange]);
+
+  // Chart Data: last 7 or 30 days
+  function getLastNDaysRangeArray(n) {
+    const days = [];
+    const today = new Date();
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    return days;
+  }
+  const chartData = getLastNDaysRangeArray(chartRange === "week" ? 7 : 30).map(
+    (date) => {
+      const daySales = chartSales.filter((sale) => {
+        const saleDate = new Date(sale.sale_date).toISOString().slice(0, 10);
+        return saleDate === date;
+      });
+      return {
+        day: new Date(date).toLocaleDateString("en-US", {
+          day: "numeric",
+          month: "short",
+        }),
+        sales: daySales.length,
+        revenue: daySales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
+      };
+    }
+  );
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e) => setIsDarkMode(e.matches);
+    media.addEventListener("change", handler);
+    return () => media.removeEventListener("change", handler);
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => !prev);
+  };
+
+  const handleOpenSidebar = (mode) => {
+    setSidebarMode(mode);
+    setSidebarOpen(true);
+  };
+  const handleCloseSidebar = () => setSidebarOpen(false);
+
+  // Handler for successful login
+  const handleLoginSuccess = (name) => {
+    setIsAuthenticated(true);
+    if (name) {
+      setUserName(name);
+      localStorage.setItem("userName", name);
+    }
+  };
+
+  // Handler for logout
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUserName("");
+    localStorage.removeItem("userName");
+  };
+
+  // Early return conditions (must be after hooks)
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Login onLoginSuccess={handleLoginSuccess} isDarkMode={isDarkMode} />
+      </>
+    );
+  }
+
+  // Debug log for render
+  console.log("Render state:", { isAuthenticated, checkingAuth, authError });
 
   return (
     <div
@@ -233,6 +453,7 @@ function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenSidebar={handleOpenSidebar}
+        onLogout={handleLogout}
       />
       {/* Inventory Sidebar */}
       <InventorySidebar
@@ -283,7 +504,10 @@ function App() {
                   isDarkMode ? "text-white" : "text-gray-900"
                 }`}
               >
-                Welcome back! 👋
+                Welcome, {userName || "back"}!{" "}
+                <span role="img" aria-label="wave">
+                  👋
+                </span>
               </h2>
               <p
                 className={`mt-1 transition-colors duration-300 ${
@@ -301,19 +525,19 @@ function App() {
                 value={`₹${todayRevenue.amount}`}
                 percentage={todayRevenue.percentage}
                 trend={todayRevenue.trend}
-                icon={DollarSign}
+                icon={IndianRupee}
                 color="success"
                 isDarkMode={isDarkMode}
               />
               <StatCard
-                title="Last 30 Days Revenue"
-                value={`₹${last30DaysRevenue.toLocaleString()}`}
+                title="This Month's Revenue"
+                value={`₹${monthRevenue.toLocaleString()}`}
                 percentage={0}
                 trend="up"
-                icon={DollarSign}
+                icon={IndianRupee}
                 color="primary"
                 isDarkMode={isDarkMode}
-                subtitle={`From ${fromDate30} to ${toDate30}`}
+                subtitle={`From ${getMonthStartDateString()} to ${getTodayDateString()}`}
               />
               <StatCard
                 title="Stock Alerts"
@@ -327,22 +551,20 @@ function App() {
             </div>
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-              {/* Weekly Chart */}
-              <div className="lg:col-span-2">
-                <WeeklyChart data={weeklyData} isDarkMode={isDarkMode} />
-              </div>
-
-              {/* Stock Alerts */}
-              <div>
-                <StockAlertCard alerts={stockAlerts} isDarkMode={isDarkMode} />
-              </div>
+            <div className="mb-8">
+              <WeeklyChart
+                data={chartData}
+                isDarkMode={isDarkMode}
+                type="line"
+                range={chartRange}
+                onRangeChange={setChartRange}
+              />
             </div>
 
             {/* Bottom Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
               {/* Top Selling Products */}
-              <div>
+              <div className="w-full">
                 <TopProductsCard
                   products={topSellingProducts}
                   isDarkMode={isDarkMode}
@@ -350,7 +572,7 @@ function App() {
               </div>
 
               {/* Low Stock Items */}
-              <div>
+              <div className="w-full">
                 <LowStockTable items={lowStockItems} isDarkMode={isDarkMode} />
               </div>
             </div>
