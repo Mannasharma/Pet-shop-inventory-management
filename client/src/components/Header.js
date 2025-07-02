@@ -66,6 +66,33 @@ const Header = ({
 
   const [showLogoutToast, setShowLogoutToast] = useState(false);
 
+  const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+  const storeRef = useRef();
+
+  // Close dropdown on outside click for store manager
+  React.useEffect(() => {
+    function handleClickOutside(event) {
+      if (storeRef.current && !storeRef.current.contains(event.target)) {
+        setStoreDropdownOpen(false);
+      }
+    }
+    if (storeDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [storeDropdownOpen]);
+
+  // Get user role from localStorage (default to NORMAL if not set)
+  const userRole =
+    (typeof window !== "undefined" && localStorage.getItem("userRole")) ||
+    "NORMAL";
+
+  // Filter tabs based on role
+  const visibleTabs =
+    userRole === "ADMIN" ? tabs : tabs.filter((tab) => tab.name !== "Reports");
+
   return (
     <header
       className={`shadow-sm border-b transition-all duration-300 ${
@@ -96,7 +123,7 @@ const Header = ({
                 isDarkMode ? "bg-gray-700" : "bg-gray-100"
               }`}
             >
-              {tabs.map((tab, idx) => (
+              {visibleTabs.map((tab, idx) => (
                 <button
                   key={tab.name}
                   onClick={() => setActiveTab(tab.name)}
@@ -108,7 +135,7 @@ const Header = ({
                       : isDarkMode
                       ? "text-gray-300 hover:text-white hover:bg-gray-600"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
-                  } ${idx !== tabs.length - 1 ? "mr-1" : ""}`}
+                  } ${idx !== visibleTabs.length - 1 ? "mr-1" : ""}`}
                 >
                   <span className="text-lg">{tab.icon}</span>
                   <span className="font-semibold">{tab.name}</span>
@@ -135,7 +162,70 @@ const Header = ({
                 <Moon className="h-5 w-5" />
               )}
             </button>
-
+            {/* Store Manager Dropdown (moved here) */}
+            {userRole === "ADMIN" && (
+              <div className="relative" ref={storeRef}>
+                <button
+                  className={`flex items-center space-x-2 p-3 rounded-lg transition-all duration-300 ${
+                    isDarkMode
+                      ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  }`}
+                  onClick={() => setStoreDropdownOpen((open) => !open)}
+                  aria-haspopup="true"
+                  aria-expanded={storeDropdownOpen}
+                >
+                  <User className="h-5 w-5" />
+                  <span className="font-semibold">Store Manager</span>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                {storeDropdownOpen && (
+                  <div
+                    className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-50 transition-all duration-200 ${
+                      isDarkMode
+                        ? "bg-gray-800 border border-gray-700"
+                        : "bg-white border border-gray-200"
+                    }`}
+                  >
+                    <button
+                      className={`w-full text-left px-4 py-3 rounded-t-lg transition-colors duration-200 ${
+                        isDarkMode
+                          ? "hover:bg-blue-700 text-white"
+                          : "hover:bg-primary-100 text-gray-900"
+                      }`}
+                      onClick={() => {
+                        setStoreDropdownOpen(false);
+                        if (
+                          typeof window !== "undefined" &&
+                          window.onStoreManagerAction
+                        )
+                          window.onStoreManagerAction("existing");
+                      }}
+                    >
+                      Existing Users
+                    </button>
+                    <button
+                      className={`w-full text-left px-4 py-3 rounded-b-lg transition-colors duration-200 ${
+                        isDarkMode
+                          ? "hover:bg-blue-700 text-white"
+                          : "hover:bg-primary-100 text-gray-900"
+                      }`}
+                      onClick={() => {
+                        setStoreDropdownOpen(false);
+                        if (
+                          typeof window !== "undefined" &&
+                          window.onStoreManagerAction
+                        )
+                          window.onStoreManagerAction("add");
+                      }}
+                    >
+                      Add User
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* End Store Manager Dropdown */}
             {/* Plus icon for Inventory only */}
             {activeTab === "Inventory" && (
               <div className="relative" ref={plusRef}>
@@ -191,27 +281,7 @@ const Header = ({
                 )}
               </div>
             )}
-
             {/* Profile dropdown */}
-            <div className="relative">
-              <button
-                className={`flex items-center space-x-2 p-3 rounded-lg transition-all duration-300 ${
-                  isDarkMode
-                    ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700"
-                    : "text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                }`}
-              >
-                <User className="h-5 w-5" />
-                <span
-                  className={`text-sm font-medium transition-colors duration-300 ${
-                    isDarkMode ? "text-gray-300" : "text-gray-700"
-                  }`}
-                >
-                  Store Manager
-                </span>
-              </button>
-            </div>
-
             {/* Logout */}
             <button
               className={`p-3 rounded-lg transition-all duration-300 ${
@@ -222,9 +292,20 @@ const Header = ({
               onClick={async () => {
                 try {
                   await authAPI.logout();
-                  setShowLogoutToast(true);
-                  setTimeout(() => setShowLogoutToast(false), 2000);
-                  onLogout && onLogout();
+                  // Clear all localStorage
+                  localStorage.clear();
+                  // Clear all cookies for this site
+                  if (document.cookie && document.cookie !== "") {
+                    const cookies = document.cookie.split(";");
+                    for (let cookie of cookies) {
+                      const eqPos = cookie.indexOf("=");
+                      const name =
+                        eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                      document.cookie =
+                        name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                    }
+                  }
+                  window.location.reload();
                 } catch (err) {
                   // Optionally show error
                 }

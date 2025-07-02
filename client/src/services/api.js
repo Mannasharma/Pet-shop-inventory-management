@@ -144,6 +144,28 @@ export const authAPI = {
   },
 };
 
+// User API functions
+export const userAPI = {
+  // Get all users
+  getAll: async () => {
+    return apiRequest("/user", { method: "GET" });
+  },
+  // Add a new user
+  add: async (user) => {
+    return apiRequest("/user/signup", {
+      method: "POST",
+      body: JSON.stringify(user),
+    });
+  },
+  // Delete users (array of usernames)
+  delete: async (usernames) => {
+    return apiRequest("/user", {
+      method: "DELETE",
+      body: JSON.stringify(usernames),
+    });
+  },
+};
+
 // Error handling utility
 export const handleAPIError = (error, fallbackData = []) => {
   console.error("API Error:", error);

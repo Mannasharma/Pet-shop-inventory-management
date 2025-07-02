@@ -8,11 +8,11 @@ async function handleUserSignup(req, res) {
   try {
     const saltRounds = 10; // 10 is a good default
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-
+    const userRole = (role || "").toUpperCase();
     await User.create({
       username,
       name,
-      role,
+      role: userRole,
       password: hashedPassword,
     });
 
@@ -40,11 +40,17 @@ async function handleUserLogin(req, res) {
 
     const token = setUser(user); // e.g., create JWT
     res.cookie("uid", token, {
-      sameSite: "strict",
+      sameSite: "lax",
       path: "/",
+      secure: false,
+      httpOnly: false,
     });
 
-    return res.json({ message: "Login successful", name: user.name });
+    return res.json({
+      message: "Login successful",
+      name: user.name,
+      role: user.role,
+    });
   } catch (error) {
     return res.status(500).json({ error: "Login failed." });
   }
@@ -79,7 +85,7 @@ async function getUsers(req, res) {
 }
 
 function logout(req, res) {
-  res.clearCookie("uid", { sameSite: "lax", secure: false });
+  res.clearCookie("uid", { sameSite: "lax", path: "/", secure: false });
   res.json({ message: "Logged out" });
 }
 

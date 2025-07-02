@@ -239,14 +239,14 @@ const Reports = ({ isDarkMode, inventory, salesDetails }) => {
                   isDarkMode ? "text-gray-200" : "text-gray-500"
                 }`}
               >
-                Unit
+                Quantity Sold
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                   isDarkMode ? "text-gray-200" : "text-gray-500"
                 }`}
               >
-                Quantity Sold
+                Unit
               </th>
               <th
                 className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
@@ -318,18 +318,18 @@ const Reports = ({ isDarkMode, inventory, salesDetails }) => {
                     {getProductCategory(sale)}
                   </td>
                   <td
-                    className={`px-6 py-4 whitespace-nowrap text-sm ${
-                      isDarkMode ? "text-gray-400" : "text-gray-600"
-                    }`}
-                  >
-                    {getProductUnit(sale)}
-                  </td>
-                  <td
                     className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
                       isDarkMode ? "text-yellow-300" : "text-yellow-700"
                     }`}
                   >
                     {sale.quantity_sold}
+                  </td>
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    {getProductUnit(sale)}
                   </td>
                   <td
                     className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${

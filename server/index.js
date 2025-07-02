@@ -10,6 +10,7 @@ const cookieParser = require("cookie-parser");
 const { checkAuth, ristrictTo } = require("./middleware/auth");
 const cluster = require("cluster");
 const os = require("os");
+const path = require("path");
 
 const numCPUs = os.cpus().length;
 const port = process.env.PORT || 5000;
@@ -48,14 +49,18 @@ if (cluster.isMaster) {
   app.use(checkAuth);
 
   // Routes
-  app.get("/", (req, res) => {
-    res.send(`Hello from worker ${process.pid}`);
-  });
+
 
   app.use("/user", userRouter);
   app.use("/inventory", ristrictTo(["NORMAL", "ADMIN"]), inventoryRouter);
   app.use("/sales", ristrictTo(["NORMAL", "ADMIN"]), saleRouter);
   app.use("/report", ristrictTo(["ADMIN"]), reportRouter);
+
+  // Serve static files from the React app
+  app.use(express.static(path.join(__dirname, "build")));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "build", "index.html"));
+  });
 
   // Start server
   app.listen(port, () => {

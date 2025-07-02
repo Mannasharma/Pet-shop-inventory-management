@@ -23,8 +23,12 @@ import {
   transformSalesFromBackend,
   transformSalesToBackend,
   toInputDateString,
+  getTodayDateStringIST,
+  getLast7DaysRangeIST,
+  getLast7DaysRangeArrayIST,
 } from "./utils/dataTransformers";
 import Login from "./components/Login";
+import StoreManagerSidebar from "./components/StoreManagerSidebar";
 
 function getMonthStartDateString() {
   const now = new Date();
@@ -75,7 +79,7 @@ function App() {
   const [salesDetails, setSalesDetails] = useState([]);
   const [monthlySales, setMonthlySales] = useState([]);
   const [weeklySales, setWeeklySales] = useState([]);
-  const [weekRange, setWeekRange] = useState(getLast7DaysRange());
+  const [weekRange, setWeekRange] = useState(getLast7DaysRangeIST());
   const [isAuthenticated, setIsAuthenticated] = useState(() => hasUidCookie());
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -84,6 +88,8 @@ function App() {
   );
   const [chartSales, setChartSales] = useState([]);
   const [chartRange, setChartRange] = useState("week");
+  const [storeSidebarOpen, setStoreSidebarOpen] = useState(false);
+  const [storeSidebarMode, setStoreSidebarMode] = useState("existing"); // 'existing' or 'add'
 
   // --- Inventory APIs using backend ---
   async function fetchInventory() {
@@ -191,27 +197,36 @@ function App() {
   }
 
   useEffect(() => {
+    if (!isAuthenticated) return; // Only fetch if authenticated
     fetchInventory();
     fetchSales();
     // Fetch all sales for the current month
     const monthStart = getMonthStartDateString();
-    const today = getTodayDateString();
+    const today = getTodayDateStringIST();
     salesAPI.getAll({ from: monthStart, to: today }).then((res) => {
       setMonthlySales(res.sales || []);
     });
-    // Fetch all sales for the last 7 days (dynamic, not hardcoded)
-    const { from, to } = getLast7DaysRange();
-    salesAPI.getAll({ from, to }).then((res) => {
-      setWeeklySales(res.sales || []);
-    });
-  }, []);
+    // Always use last 7 days ending today for weeklySales
+    const weekRangeIST = getLast7DaysRangeIST();
+    salesAPI
+      .getAll({ from: weekRangeIST.from, to: weekRangeIST.to })
+      .then((res) => {
+        setWeeklySales(res.sales || []);
+      });
+  }, [isAuthenticated]);
 
-  // Fetch weekly sales when weekRange changes
-  useEffect(() => {
-    salesAPI.getAll({ from: weekRange.from, to: weekRange.to }).then((res) => {
-      setWeeklySales(res.sales || []);
+  // Weekly Data: last 7 days (always ending today in IST)
+  const weeklyData = getLast7DaysRangeArrayIST().map((date) => {
+    const daySales = weeklySales.filter((sale) => {
+      const saleDate = new Date(sale.sale_date).toISOString().slice(0, 10);
+      return saleDate === date;
     });
-  }, [weekRange]);
+    return {
+      day: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
+      sales: daySales.length,
+      revenue: daySales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
+    };
+  });
 
   // Calculate monthly revenue
   const monthRevenue = monthlySales.reduce(
@@ -219,8 +234,8 @@ function App() {
     0
   );
 
-  // Today's date in yyyy-mm-dd
-  const today = new Date().toISOString().slice(0, 10);
+  // Today's date in yyyy-mm-dd (IST)
+  const today = getTodayDateStringIST();
   // Today's revenue
   const todaysSales = salesDetails.filter((sale) => sale.sale_date === today);
   const todayRevenue = {
@@ -247,19 +262,6 @@ function App() {
         priority,
       };
     });
-  // Weekly Data: last 7 days
-  const weeklyData = getLast7DaysRangeArray(weekRange.from).map((date) => {
-    const daySales = weeklySales.filter((sale) => {
-      // Normalize both to YYYY-MM-DD for comparison
-      const saleDate = new Date(sale.sale_date).toISOString().slice(0, 10);
-      return saleDate === date;
-    });
-    return {
-      day: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
-      sales: daySales.length,
-      revenue: daySales.reduce((sum, sale) => sum + Number(sale.revenue), 0),
-    };
-  });
   // Top Selling Products (Current Month, >0 sold, with unit)
   const monthlyProductSalesMap = {};
   monthlySales.forEach((sale) => {
@@ -324,10 +326,11 @@ function App() {
   // Last 30 Days Data
   function getLastNDaysRangeArray(n) {
     const days = [];
-    const today = new Date();
+    const today = getTodayDateStringIST();
+    const todayDate = new Date(today);
     for (let i = n - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
+      const d = new Date(todayDate);
+      d.setDate(todayDate.getDate() - i);
       days.push(d.toISOString().slice(0, 10));
     }
     return days;
@@ -351,12 +354,12 @@ function App() {
   useEffect(() => {
     let from, to;
     if (chartRange === "week") {
-      const range = getLast7DaysRange();
+      const range = getLast7DaysRangeIST();
       from = range.from;
       to = range.to;
     } else {
       // last 30 days
-      const today = getTodayDateString();
+      const today = getTodayDateStringIST();
       const d = new Date();
       d.setDate(d.getDate() - 29);
       from = d.toISOString().slice(0, 10);
@@ -367,17 +370,7 @@ function App() {
     });
   }, [chartRange]);
 
-  // Chart Data: last 7 or 30 days
-  function getLastNDaysRangeArray(n) {
-    const days = [];
-    const today = new Date();
-    for (let i = n - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      days.push(d.toISOString().slice(0, 10));
-    }
-    return days;
-  }
+  // Chart Data: last 7 or 30 days (always ending today in IST)
   const chartData = getLastNDaysRangeArray(chartRange === "week" ? 7 : 30).map(
     (date) => {
       const daySales = chartSales.filter((sale) => {
@@ -414,11 +407,14 @@ function App() {
   const handleCloseSidebar = () => setSidebarOpen(false);
 
   // Handler for successful login
-  const handleLoginSuccess = (name) => {
+  const handleLoginSuccess = (name, role) => {
     setIsAuthenticated(true);
     if (name) {
       setUserName(name);
       localStorage.setItem("userName", name);
+    }
+    if (role) {
+      localStorage.setItem("userRole", role);
     }
   };
 
@@ -427,7 +423,19 @@ function App() {
     setIsAuthenticated(false);
     setUserName("");
     localStorage.removeItem("userName");
+    localStorage.removeItem("userRole");
   };
+
+  // Attach handler for Store Manager dropdown
+  useEffect(() => {
+    window.onStoreManagerAction = (mode) => {
+      setStoreSidebarMode(mode);
+      setStoreSidebarOpen(true);
+    };
+    return () => {
+      window.onStoreManagerAction = undefined;
+    };
+  }, []);
 
   // Early return conditions (must be after hooks)
   if (!isAuthenticated) {
@@ -454,6 +462,12 @@ function App() {
         setActiveTab={setActiveTab}
         onOpenSidebar={handleOpenSidebar}
         onLogout={handleLogout}
+      />
+      <StoreManagerSidebar
+        open={storeSidebarOpen}
+        mode={storeSidebarMode}
+        onClose={() => setStoreSidebarOpen(false)}
+        isDarkMode={isDarkMode}
       />
       {/* Inventory Sidebar */}
       <InventorySidebar
@@ -537,7 +551,7 @@ function App() {
                 icon={IndianRupee}
                 color="primary"
                 isDarkMode={isDarkMode}
-                subtitle={`From ${getMonthStartDateString()} to ${getTodayDateString()}`}
+                subtitle={`From ${getMonthStartDateString()} to ${getTodayDateStringIST()}`}
               />
               <StatCard
                 title="Stock Alerts"

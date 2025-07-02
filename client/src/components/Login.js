@@ -17,7 +17,9 @@ const Login = ({ onLoginSuccess, isDarkMode }) => {
     try {
       const response = await authAPI.login(username, password);
       if (response && !response.error) {
-        onLoginSuccess(response.name);
+        localStorage.setItem("userRole", response.role || "");
+        onLoginSuccess(response.name, response.role);
+        window.location.reload(); // Force full reload after login
       } else {
         setError("Invalid username or password");
       }

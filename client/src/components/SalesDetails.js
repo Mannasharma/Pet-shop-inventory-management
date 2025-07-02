@@ -7,6 +7,7 @@ import {
   X as CancelIcon,
   Calendar as CalendarIcon,
   Save,
+  ShoppingCart,
 } from "lucide-react";
 import { useRefresh } from "../context/RefreshContext";
 
@@ -43,6 +44,7 @@ const SalesDetails = ({
   const fromDateInputRef = useRef();
   const toDateInputRef = useRef();
   const { triggerRefresh } = useRefresh();
+  const [showSearchForm, setShowSearchForm] = useState(false);
 
   // Helper to get product info by id from current inventory, fallback to sale fields
   const getProductById = (id) =>
@@ -200,153 +202,146 @@ const SalesDetails = ({
       }`}
     >
       {/* Unified Controls Row */}
-      <div className="flex flex-wrap gap-3 items-center justify-between mb-6 w-full">
-        <form
-          onSubmit={handleSearch}
-          className="flex flex-wrap gap-3 items-center min-w-0 flex-1"
-          style={{ flexBasis: 0 }}
-        >
-          <input
-            type="text"
-            placeholder="Search by product name, category, brand, unit..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className={`rounded-lg px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[180px] ${
-              isDarkMode
-                ? "text-gray-100 placeholder-gray-400 bg-gray-900"
-                : "text-gray-900 placeholder-gray-500 bg-white"
-            }`}
-          />
-          <div className="relative">
-            <input
-              type="date"
-              id="sales-from-date"
-              ref={fromDateInputRef}
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[130px] ${
-                isDarkMode
-                  ? "text-gray-100 placeholder-gray-400 bg-gray-900"
-                  : "text-gray-900 placeholder-gray-500 bg-white"
-              }`}
-            />
-            <CalendarIcon
-              size={18}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-auto cursor-pointer"
-              onClick={() =>
-                fromDateInputRef.current && fromDateInputRef.current.focus()
-              }
-            />
-          </div>
-          <span className="text-gray-500">to</span>
-          <div className="relative">
-            <input
-              type="date"
-              id="sales-to-date"
-              ref={toDateInputRef}
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[130px] ${
-                isDarkMode
-                  ? "text-gray-100 placeholder-gray-400 bg-gray-900"
-                  : "text-gray-900 placeholder-gray-500 bg-white"
-              }`}
-            />
-            <CalendarIcon
-              size={18}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-auto cursor-pointer"
-              onClick={() =>
-                toDateInputRef.current && toDateInputRef.current.focus()
-              }
-            />
-          </div>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 font-semibold text-sm flex items-center justify-center"
-            aria-label="Search"
-          >
-            <SearchIcon size={20} />
-          </button>
-          {(searchText || fromDate || toDate) && (
+      <div className="w-full flex flex-col mb-6">
+        {/* Left-aligned search button or centered form */}
+        {!showSearchForm ? (
+          <div className="flex justify-start w-full">
             <button
               type="button"
-              onClick={handleClearSearch}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg flex items-center justify-center"
+              style={{ minWidth: 48, minHeight: 48 }}
+              aria-label="Show Search Form"
+              onClick={() => setShowSearchForm(true)}
+            >
+              <SearchIcon size={24} />
+            </button>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              handleSearch(e);
+            }}
+            className="flex flex-wrap gap-3 items-center justify-center"
+            style={{ maxWidth: 800 }}
+          >
+            <input
+              type="text"
+              placeholder="Search by product name, category, brand, unit..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className={`rounded-lg px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[180px] ${
+                isDarkMode
+                  ? "text-gray-100 placeholder-gray-400 bg-gray-900"
+                  : "text-gray-900 placeholder-gray-500 bg-white"
+              }`}
+            />
+            <div className="relative">
+              <input
+                type="date"
+                id="sales-from-date"
+                ref={fromDateInputRef}
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[130px] ${
+                  isDarkMode
+                    ? "text-gray-100 placeholder-gray-400 bg-gray-900"
+                    : "text-gray-900 placeholder-gray-500 bg-white"
+                }`}
+              />
+              <CalendarIcon
+                size={18}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-auto cursor-pointer"
+                onClick={() =>
+                  fromDateInputRef.current && fromDateInputRef.current.focus()
+                }
+              />
+            </div>
+            <span className="text-gray-500">to</span>
+            <div className="relative">
+              <input
+                type="date"
+                id="sales-to-date"
+                ref={toDateInputRef}
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className={`rounded-lg px-4 py-2 pr-10 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm min-w-[130px] ${
+                  isDarkMode
+                    ? "text-gray-100 placeholder-gray-400 bg-gray-900"
+                    : "text-gray-900 placeholder-gray-500 bg-white"
+                }`}
+              />
+              <CalendarIcon
+                size={18}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-auto cursor-pointer"
+                onClick={() =>
+                  toDateInputRef.current && toDateInputRef.current.focus()
+                }
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 font-semibold text-sm flex items-center justify-center"
+              aria-label="Search"
+            >
+              <SearchIcon size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSearchForm(false)}
               className="ml-1 p-2 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 flex items-center justify-center"
-              aria-label="Clear search fields"
+              aria-label="Close search fields"
             >
               <CancelIcon size={16} />
             </button>
-          )}
-        </form>
-        {/* Operation Buttons - always in the same row, right-aligned */}
-        <div className="flex flex-wrap gap-2 items-center justify-end">
+          </form>
+        )}
+        {/* Operation Buttons - right aligned */}
+        <div className="flex flex-wrap gap-2 items-center justify-end w-full mt-3 pr-2">
           {!deleteMode ? (
             <>
               <button
+                type="button"
                 onClick={() => setBatchSalesOpen(true)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 ${
-                  isDarkMode
-                    ? "bg-green-700 text-white hover:bg-green-600"
-                    : "bg-success-500 text-white hover:bg-success-600"
-                }`}
+                className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 flex items-center justify-center"
                 aria-label="Batch Sales"
               >
-                Batch Sales
+                <ShoppingCart size={24} />
               </button>
               <button
+                type="button"
                 onClick={() => setDeleteMode(true)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 ml-2 ${
-                  isDarkMode
-                    ? "bg-red-700 text-white hover:bg-red-600"
-                    : "bg-danger-500 text-white hover:bg-danger-600"
-                }`}
-                aria-label="Enter Delete Mode"
+                className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 flex items-center justify-center"
+                aria-label="Delete"
               >
-                Delete
+                <Trash2 size={24} />
               </button>
             </>
           ) : (
             <>
               <button
-                onClick={() => setShowBatchDeleteModal(true)}
-                disabled={selectedSales.length === 0}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 ${
-                  selectedSales.length === 0
-                    ? isDarkMode
-                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : isDarkMode
-                    ? "bg-red-700 text-white hover:bg-red-600"
-                    : "bg-danger-500 text-white hover:bg-danger-600"
-                }`}
+                type="button"
+                onClick={handleBatchDelete}
+                className="bg-gray-500 text-white rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 flex items-center justify-center"
                 aria-label="Delete Selected Sales"
+                disabled={selectedSales.length === 0}
               >
-                Delete Selected
+                <Trash2 size={20} />
               </button>
               <button
-                onClick={() => {
-                  setDeleteMode(false);
-                  setSelectedSales([]);
-                }}
-                className={`px-4 py-2 rounded-lg font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 ml-2 ${
-                  isDarkMode
-                    ? "bg-transparent text-white border-gray-500 hover:bg-gray-700"
-                    : "bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
-                }`}
+                type="button"
+                onClick={() => setDeleteMode(false)}
+                className="border border-gray-400 text-white rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 flex items-center justify-center"
                 aria-label="Cancel Delete Mode"
               >
-                Cancel
+                <CancelIcon size={20} />
               </button>
               <button
+                type="button"
                 onClick={() => setBatchSalesOpen(true)}
-                className={`px-4 py-2 rounded-lg font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 ml-2 ${
-                  isDarkMode
-                    ? "bg-transparent text-green-300 border-green-700 hover:bg-green-900/10"
-                    : "bg-white text-success-600 border-success-400 hover:bg-success-50"
-                }`}
+                className="border border-green-500 text-green-400 rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 flex items-center justify-center"
                 aria-label="Batch Sales"
               >
-                Batch Sales
+                <ShoppingCart size={20} />
               </button>
             </>
           )}
@@ -408,14 +403,14 @@ const SalesDetails = ({
                     isDarkMode ? "text-gray-300" : "text-gray-500"
                   }`}
                 >
-                  Unit
+                  Quantity Sold
                 </th>
                 <th
                   className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     isDarkMode ? "text-gray-300" : "text-gray-500"
                   }`}
                 >
-                  Quantity Sold
+                  Unit
                 </th>
                 <th
                   className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
@@ -480,9 +475,6 @@ const SalesDetails = ({
                         {getProductCategory(sale)}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
-                        {getProductUnit(sale)}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
                         <input
                           type="number"
                           min="1"
@@ -499,6 +491,9 @@ const SalesDetails = ({
                               : "bg-gray-100 text-gray-900"
                           }`}
                         />
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
+                        {getProductUnit(sale)}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
                         <input
@@ -602,18 +597,18 @@ const SalesDetails = ({
                         {getProductCategory(sale)}
                       </td>
                       <td
-                        className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          isDarkMode ? "text-gray-400" : "text-gray-600"
-                        }`}
-                      >
-                        {getProductUnit(sale)}
-                      </td>
-                      <td
                         className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
                           isDarkMode ? "text-yellow-300" : "text-yellow-700"
                         }`}
                       >
                         {sale.quantity_sold}
+                      </td>
+                      <td
+                        className={`px-6 py-4 whitespace-nowrap text-sm ${
+                          isDarkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
+                        {getProductUnit(sale)}
                       </td>
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
