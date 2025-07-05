@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || "https://pet-shop-inventory-management-system.onrender.com/";
+  process.env.REACT_APP_API_BASE_URL || "https://pet-shop-inventory-management-system.onrender.com";
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
