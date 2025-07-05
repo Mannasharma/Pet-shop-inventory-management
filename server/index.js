@@ -1,6 +1,5 @@
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
 const { connectMongoDB } = require("./config/connection");
 const inventoryRouter = require("./routes/inventoryRouter");
 const saleRouter = require("./routes/saleRouter");
@@ -11,9 +10,15 @@ const { checkAuth, ristrictTo } = require("./middleware/auth");
 const cluster = require("cluster");
 const os = require("os");
 const path = require("path");
+const cors = require("cors");
 
 const numCPUs = os.cpus().length;
 const port = process.env.PORT || 5000;
+
+const allowedOrigins = [
+  "https://pet-shop-inventory-management.onrender.com", // frontend URL
+  "http://localhost:3000", // for local development
+];
 
 if (cluster.isMaster) {
   console.log(`🔧 Master ${process.pid} is running`);
@@ -36,11 +41,17 @@ if (cluster.isMaster) {
 
   const app = express();
 
-  
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
   app.use(cookieParser());
   app.use(checkAuth);
+
+  app.use(
+    cors({
+      origin: allowedOrigins,
+      credentials: true,
+    })
+  );
 
   // API Routes
   app.use("/user", userRouter);
