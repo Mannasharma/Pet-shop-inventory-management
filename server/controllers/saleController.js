@@ -1,5 +1,5 @@
 const Sale = require("../models/Sale");
-const Inventory = require("../models/Inventory");
+const Inventory = require("../models/inventory");
 
 // Add new sale
 async function addNewSale(req, res) {
