@@ -36,18 +36,7 @@ if (cluster.isMaster) {
 
   const app = express();
 
-  // Middleware
-  const allowedOrigins = [
-    "https://pet-shop-inventory-management-system.onrender.com", // frontend URL
-    "http://localhost:3000", // for local development
-  ];
-
-  app.use(
-    cors({
-      origin: allowedOrigins,
-      credentials: true,
-    })
-  );
+  
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
   app.use(cookieParser());
