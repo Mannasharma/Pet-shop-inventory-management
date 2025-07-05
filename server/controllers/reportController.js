@@ -1,5 +1,5 @@
 const Sale = require("../models/Sale");
-const Inventory = require("../models/Inventory");
+const Inventory = require("../models/inventory");
 
 async function getReport(req, res) {
   const { id, from, to, brand, category, productName } = req.body;
