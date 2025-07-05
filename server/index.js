@@ -37,10 +37,14 @@ if (cluster.isMaster) {
   const app = express();
 
   // Middleware
+  const allowedOrigins = [
+    "https://pet-shop-inventory-management-system.onrender.com", // frontend URL
+    "http://localhost:3000", // for local development
+  ];
+
   app.use(
     cors({
-      origin:
-        process.env.NODE_ENV === "production" ? false : "http://localhost:3000",
+      origin: allowedOrigins,
       credentials: true,
     })
   );
