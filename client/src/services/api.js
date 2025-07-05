@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
-=======
-const const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
->>>>>>> 42294812fc60cc4b8e6adb586dd6a1425d5b21ef
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
