@@ -41,17 +41,17 @@ if (cluster.isMaster) {
 
   const app = express();
 
+  app.use(
+    cors({
+      origin: "https://pet-shop-inventory-management.onrender.com",
+      credentials: true,
+    })
+  );
+
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
   app.use(cookieParser());
   app.use(checkAuth);
-
-  app.use(
-    cors({
-      origin: allowedOrigins,
-      credentials: true,
-    })
-  );
 
   // API Routes
   app.use("/user", userRouter);
