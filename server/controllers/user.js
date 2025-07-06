@@ -40,10 +40,10 @@ async function handleUserLogin(req, res) {
 
     const token = setUser(user); // e.g., create JWT
     res.cookie("uid", token, {
-      sameSite: "lax",
+      sameSite: "none",
       path: "/",
-      secure: false,
-      httpOnly: false,
+      secure: true,
+      httpOnly: true,
     });
 
     return res.json({
@@ -85,7 +85,7 @@ async function getUsers(req, res) {
 }
 
 function logout(req, res) {
-  res.clearCookie("uid", { sameSite: "lax", path: "/", secure: false });
+  res.clearCookie("uid", { sameSite: "none", path: "/", secure: true });
   res.json({ message: "Logged out" });
 }
 
