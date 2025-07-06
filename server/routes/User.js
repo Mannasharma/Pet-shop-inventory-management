@@ -16,6 +16,6 @@ router.post("/login", handleUserLogin);
 router.get("/", ristrictTo(["ADMIN"]), getUsers);
 router.delete("/", ristrictTo(["ADMIN"]), deleteUser);
 router.post("/logout", logout);
-router.get("/me", checkAuth, getCurrentUser);
+router.get("/me", getCurrentUser);
 
 module.exports = router;

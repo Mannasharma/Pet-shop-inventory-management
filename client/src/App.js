@@ -197,6 +197,23 @@ function App() {
   }
 
   useEffect(() => {
+    // On mount, verify authentication with backend
+    setCheckingAuth(true);
+    authAPI
+      .getCurrentUser()
+      .then((res) => {
+        if (res && res.username) {
+          setIsAuthenticated(true);
+          setUserName(res.name || "");
+        } else {
+          setIsAuthenticated(false);
+        }
+      })
+      .catch(() => setIsAuthenticated(false))
+      .finally(() => setCheckingAuth(false));
+  }, []);
+
+  useEffect(() => {
     if (!isAuthenticated) return; // Only fetch if authenticated
     fetchInventory();
     fetchSales();
