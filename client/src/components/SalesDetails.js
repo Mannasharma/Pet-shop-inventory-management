@@ -10,6 +10,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { useRefresh } from "../context/RefreshContext";
+import { salesAPI } from "../services/api";
 
 const SalesDetails = ({
   isDarkMode,
@@ -45,6 +46,7 @@ const SalesDetails = ({
   const toDateInputRef = useRef();
   const { triggerRefresh } = useRefresh();
   const [showSearchForm, setShowSearchForm] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   // Helper to get product info by id from current inventory, fallback to sale fields
   const getProductById = (id) =>
@@ -193,6 +195,26 @@ const SalesDetails = ({
     triggerRefresh();
   };
 
+  // Handler for deleting all sales
+  const handleDeleteAllSales = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete ALL sales? This cannot be undone."
+      )
+    )
+      return;
+    setDeletingAll(true);
+    try {
+      await salesAPI.deleteAll();
+      await fetchSales();
+      alert("All sales deleted successfully.");
+    } catch (error) {
+      alert("Failed to delete all sales.");
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   return (
     <div
       className={`rounded-xl shadow-sm border p-6 transition-all duration-300 ${
@@ -315,15 +337,29 @@ const SalesDetails = ({
               >
                 <Trash2 size={24} />
               </button>
+              <button
+                type="button"
+                onClick={handleDeleteAllSales}
+                className="bg-red-700 hover:bg-red-800 text-white rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 flex items-center justify-center"
+                aria-label="Delete All Sales"
+                disabled={deletingAll}
+                style={{ marginRight: 8 }}
+              >
+                <Trash2 size={24} /> Delete All Sales
+              </button>
             </>
           ) : (
             <>
               <button
                 type="button"
                 onClick={handleBatchDelete}
-                className="bg-gray-500 text-white rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 flex items-center justify-center"
+                className={`rounded-lg px-6 py-3 font-semibold text-lg shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center ${
+                  selectedSales.length === 0 || deletingAll
+                    ? "bg-gray-400 text-white cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700 text-white focus:ring-red-400"
+                }`}
                 aria-label="Delete Selected Sales"
-                disabled={selectedSales.length === 0}
+                disabled={selectedSales.length === 0 || deletingAll}
               >
                 <Trash2 size={20} />
               </button>

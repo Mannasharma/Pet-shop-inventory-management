@@ -117,6 +117,13 @@ export const salesAPI = {
       body: JSON.stringify(saleIds),
     });
   },
+
+  // Delete all sales (no inventory update)
+  deleteAll: async () => {
+    return apiRequest("/sales/all", {
+      method: "DELETE",
+    });
+  },
 };
 
 // Reports API functions

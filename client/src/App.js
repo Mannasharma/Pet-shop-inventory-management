@@ -454,12 +454,17 @@ function App() {
     };
   }, []);
 
-  // Early return conditions (must be after hooks)
+  if (checkingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span>Loading...</span>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
-      <>
-        <Login onLoginSuccess={handleLoginSuccess} isDarkMode={isDarkMode} />
-      </>
+      <Login onLoginSuccess={handleLoginSuccess} isDarkMode={isDarkMode} />
     );
   }
 
